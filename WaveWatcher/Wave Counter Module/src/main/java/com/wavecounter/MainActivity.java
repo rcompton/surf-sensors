@@ -3,7 +3,9 @@ package com.wavecounter;
 import android.app.Activity;
 import android.app.ActionBar;
 import android.app.Fragment;
+import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -12,6 +14,8 @@ import android.view.ViewGroup;
 import android.os.Build;
 
 public class MainActivity extends Activity {
+
+    private static final String LOG_TAG = "wavecounter main";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +52,12 @@ public class MainActivity extends Activity {
      */
     public void recordButton(View view){
 
+        Log.i(LOG_TAG, "hit record");
+        Intent intent = new Intent(this, SensorActivity.class);
+        //intent.putExtra(SUBMITTED_REPORT_MESSAGE, submittedReport);
+        //if(tookPhoto)
+        //    intent.putExtra(SUBMITTED_REPORT_PHOTO, imageUri.getPath());
+        startActivity(intent);
 
     }
 
