@@ -11,12 +11,13 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
-import com.wavecounter.sensors.AccelerometerMeasurement;
+import com.wavecounter.sensors.GyroscopeMeasurement;
+import com.wavecounter.sensors.RotationVectorMeasurement;
+import com.wavecounter.sensors.LinearAccelerometerMeasurement;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,20 +28,26 @@ public class SensorActivity extends Activity implements SensorEventListener {
     private static final String LOG_TAG = "wavecounter sensors";
 
     private SensorManager mSensorManager;
-    private Sensor mAccelerometer;
+    private Sensor mLinearAccelerometer;
     private Sensor mGyroscope;
+    private Sensor mRotationVector;
 
 
     private String fnameTimeStamp;
 
-    private List<AccelerometerMeasurement> accelerometerMeasurements;
+    private List<LinearAccelerometerMeasurement> linearAccelerometerMeasurements;
+    private List<RotationVectorMeasurement> rotationVectorMeasurements;
+    private List<GyroscopeMeasurement> gyroscopeMeasurements;
 
     /**
      * rotating device calls oncreate?
      */
     public SensorActivity(){
         fnameTimeStamp = Long.toString(System.currentTimeMillis());
-        accelerometerMeasurements = new ArrayList<AccelerometerMeasurement>();
+        linearAccelerometerMeasurements = new ArrayList<LinearAccelerometerMeasurement>();
+        rotationVectorMeasurements = new ArrayList<RotationVectorMeasurement>();
+        gyroscopeMeasurements = new ArrayList<GyroscopeMeasurement>();
+
     }
 
     @Override
@@ -53,19 +60,23 @@ public class SensorActivity extends Activity implements SensorEventListener {
         mSensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
 
         //register accelerometer
-        mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        mLinearAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
+        mSensorManager.registerListener(this, mLinearAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
 
         //register gyroscope
         mGyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
         mSensorManager.registerListener(this, mGyroscope, SensorManager.SENSOR_DELAY_NORMAL);
+
+        //register rotation vector
+        mRotationVector = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+        mSensorManager.registerListener(this, mRotationVector, SensorManager.SENSOR_DELAY_NORMAL);
 
     }
 
     protected void onResume() {
         super.onResume();
         Log.i(LOG_TAG, "sensor activity onResume");
-        mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        mSensorManager.registerListener(this, mLinearAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
     }
 
     protected void onPause() {
@@ -79,20 +90,41 @@ public class SensorActivity extends Activity implements SensorEventListener {
      */
     public void saveButton(View view){
 
-        Log.i(LOG_TAG, Integer.toString(accelerometerMeasurements.size()) );
+        Log.i(LOG_TAG, Integer.toString(linearAccelerometerMeasurements.size()) );
         try{
-            File accelFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath(),
-                    "accel_data_"+fnameTimeStamp+".tsv");
-
-            Toast.makeText(getApplicationContext(), accelFile.toString(), Toast.LENGTH_LONG).show();
-
-            Log.i(LOG_TAG, accelFile.toString() );
-
-            BufferedWriter bw = new BufferedWriter(new FileWriter(accelFile));
-            for(AccelerometerMeasurement am : accelerometerMeasurements){
+            //write acceleration data
+            File linearAccelFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath(),
+                    "linear_accel_data_"+fnameTimeStamp+".tsv");
+            Toast.makeText(getApplicationContext(), linearAccelFile.toString(), Toast.LENGTH_LONG).show();
+            Log.i(LOG_TAG, linearAccelFile.toString() );
+            BufferedWriter bw = new BufferedWriter(new FileWriter(linearAccelFile));
+            for(LinearAccelerometerMeasurement am : linearAccelerometerMeasurements){
                 bw.write(am.toString() + "\n");
             }
             bw.close();
+
+            //write gyro data
+            File gyroFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath(),
+                    "gyroscope_data_"+fnameTimeStamp+".tsv");
+            Toast.makeText(getApplicationContext(), gyroFile.toString(), Toast.LENGTH_LONG).show();
+            Log.i(LOG_TAG, gyroFile.toString() );
+            bw = new BufferedWriter(new FileWriter(gyroFile));
+            for(GyroscopeMeasurement gm : gyroscopeMeasurements){
+                bw.write(gm.toString() + "\n");
+            }
+            bw.close();
+
+            //write rotation data
+            File rvFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath(),
+                    "rotation_vector_data_"+fnameTimeStamp+".tsv");
+            Toast.makeText(getApplicationContext(), rvFile.toString(), Toast.LENGTH_LONG).show();
+            Log.i(LOG_TAG, rvFile.toString() );
+            bw = new BufferedWriter(new FileWriter(rvFile));
+            for(RotationVectorMeasurement rvm : rotationVectorMeasurements){
+                bw.write(rvm.toString() + "\n");
+            }
+            bw.close();
+
 
         }catch (Exception e){
             Log.e(LOG_TAG,"io problem", e);
@@ -109,46 +141,34 @@ public class SensorActivity extends Activity implements SensorEventListener {
 
         long currentTime = System.currentTimeMillis();
 
-        if (event.sensor.getType()==Sensor.TYPE_ACCELEROMETER){
+        if (event.sensor.getType()==Sensor.TYPE_LINEAR_ACCELERATION){
             float ax,ay,az;
             ax=event.values[0];
             ay=event.values[1];
             az=event.values[2];
             //Log.i(LOG_TAG, ax + "," + ay + "," + az);
-            accelerometerMeasurements.add(new AccelerometerMeasurement(currentTime, ax, ay, az));
+            linearAccelerometerMeasurements.add(new LinearAccelerometerMeasurement(currentTime, ax, ay, az));
         }
+
+        if (event.sensor.getType()==Sensor.TYPE_GYROSCOPE){
+            float gx,gy,gz;
+            gx=event.values[0];
+            gy=event.values[1];
+            gz=event.values[2];
+            //Log.i(LOG_TAG, ax + "," + ay + "," + az);
+            gyroscopeMeasurements.add(new GyroscopeMeasurement(currentTime, gx, gy, gz));
+        }
+
+        if (event.sensor.getType()==Sensor.TYPE_ROTATION_VECTOR){
+            float gx,gy,gz;
+            gx=event.values[0];
+            gy=event.values[1];
+            gz=event.values[2];
+            //Log.i(LOG_TAG, ax + "," + ay + "," + az);
+            rotationVectorMeasurements.add(new RotationVectorMeasurement(currentTime, gx, gy, gz));
+        }
+
+        
     }
 
-
-//    public void onSensorChanged(SensorEvent event) {
-//        //Right in here is where you put code to read the current sensor values and
-//        //update any views you might have that are displaying the sensor information
-//        //You'd get accelerometer values like this:
-//        if (event.sensor.getType() != Sensor.TYPE_ACCELEROMETER)
-//            return;
-//        float mSensorX, mSensorY, mSensorZ;
-//        mSensorX = event.values[0];
-//        mSensorY = event.values[1];
-//        mSensorZ = event.values[2];
-//
-//        Log.i(LOG_TAG, mSensorX + "," + mSensorY + "," + mSensorZ);
-
-//        switch (mDisplay.getRotation()) {
-//            case Surface.ROTATION_0:
-//                mSensorX = event.values[0];
-//                mSensorY = event.values[1];
-//                break;
-//            case Surface.ROTATION_90:
-//                mSensorX = -event.values[1];
-//                mSensorY = event.values[0];
-//                break;
-//            case Surface.ROTATION_180:
-//                mSensorX = -event.values[0];
-//                mSensorY = -event.values[1];
-//                break;
-//            case Surface.ROTATION_270:
-//                mSensorX = event.values[1];
-//                mSensorY = -event.values[0];
-//        }
-//    }
 }
