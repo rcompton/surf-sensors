@@ -5,15 +5,19 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.location.Location;
+import android.location.LocationListener;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
+import com.wavecounter.GPS.GPSManager;
+import com.wavecounter.sensors.GPSMeasurement;
 import com.wavecounter.sensors.GyroscopeMeasurement;
-import com.wavecounter.sensors.RotationVectorMeasurement;
 import com.wavecounter.sensors.LinearAccelerometerMeasurement;
+import com.wavecounter.sensors.RotationVectorMeasurement;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -24,7 +28,7 @@ import java.util.List;
 /**
  * Created by ryan on 11/17/13.
  */
-public class SensorActivity extends Activity implements SensorEventListener {
+public class SensorActivity extends Activity implements SensorEventListener, LocationListener {
     private static final String LOG_TAG = "wavecounter sensors";
 
     private SensorManager mSensorManager;
@@ -32,12 +36,13 @@ public class SensorActivity extends Activity implements SensorEventListener {
     private Sensor mGyroscope;
     private Sensor mRotationVector;
 
-
     private String fnameTimeStamp;
 
     private List<LinearAccelerometerMeasurement> linearAccelerometerMeasurements;
     private List<RotationVectorMeasurement> rotationVectorMeasurements;
     private List<GyroscopeMeasurement> gyroscopeMeasurements;
+
+    private List<GPSMeasurement> gpsMeasurements;
 
     /**
      * rotating device calls oncreate?
@@ -47,6 +52,8 @@ public class SensorActivity extends Activity implements SensorEventListener {
         linearAccelerometerMeasurements = new ArrayList<LinearAccelerometerMeasurement>();
         rotationVectorMeasurements = new ArrayList<RotationVectorMeasurement>();
         gyroscopeMeasurements = new ArrayList<GyroscopeMeasurement>();
+        gpsMeasurements = new ArrayList<GPSMeasurement>();
+
 
     }
 
@@ -70,6 +77,11 @@ public class SensorActivity extends Activity implements SensorEventListener {
         //register rotation vector
         mRotationVector = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
         mSensorManager.registerListener(this, mRotationVector, SensorManager.SENSOR_DELAY_NORMAL);
+
+        //GPS, check that it's enabled.
+        GPSManager gpsManager = new GPSManager(SensorActivity.this);
+        gpsManager.start();
+
 
     }
 
@@ -125,6 +137,17 @@ public class SensorActivity extends Activity implements SensorEventListener {
             }
             bw.close();
 
+            //write GPS data
+            File gpsFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath(),
+                    "gps_data_"+fnameTimeStamp+".tsv");
+            Toast.makeText(getApplicationContext(), rvFile.toString(), Toast.LENGTH_LONG).show();
+            Log.i(LOG_TAG, rvFile.toString() );
+            bw = new BufferedWriter(new FileWriter(rvFile));
+            for(GPSMeasurement gpsm : gpsMeasurements){
+                bw.write(gpsm.toString() + "\n");
+            }
+            bw.close();
+
 
         }catch (Exception e){
             Log.e(LOG_TAG,"io problem", e);
@@ -168,7 +191,42 @@ public class SensorActivity extends Activity implements SensorEventListener {
             rotationVectorMeasurements.add(new RotationVectorMeasurement(currentTime, gx, gy, gz));
         }
 
-        
+
     }
 
+    /**
+     * GPS location changed
+     * @param location
+     */
+    @Override
+    public void onLocationChanged(Location location) {
+
+        long currentTime = System.currentTimeMillis();
+
+        Log.i(LOG_TAG, "LAT"+ String.valueOf(location.getLatitude()));
+        Log.i(LOG_TAG,"LONG"+ String.valueOf(location.getLongitude()));
+        Log.i(LOG_TAG,"ACCURACY"+ String.valueOf(location.getAccuracy() + " m"));
+        Log.i(LOG_TAG,"PROVIDER"+ String.valueOf(location.getProvider()));
+        Log.i(LOG_TAG,"SPEED"+ String.valueOf(location.getSpeed() + " m/s"));
+        Log.i(LOG_TAG,"ALTITUDE"+ String.valueOf(location.getAltitude()));
+        Log.i(LOG_TAG,"BEARING"+ String.valueOf(location.getBearing() + " degrees east of true north"));
+
+        if (location != null) {
+            gpsMeasurements.add(new GPSMeasurement(currentTime, location.getLatitude(), location.getLongitude()));
+        }
+
+    }
+
+    //GPSManager handles this
+    @Override
+    public void onStatusChanged(String s, int i, Bundle bundle) {
+    }
+    //GPSManager handles this
+    @Override
+    public void onProviderEnabled(String s) {
+    }
+    //GPSManager handles this
+    @Override
+    public void onProviderDisabled(String s) {
+    }
 }
